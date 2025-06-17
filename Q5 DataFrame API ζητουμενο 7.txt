@@ -1,0 +1,30 @@
+//Q5 DataFrame API ζητουμενο 7
+package org.example;
+
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
+
+import static org.apache.spark.sql.functions.*;
+
+public class Query5DataFrame {
+    public static void main(String[] args) {
+        SparkSession spark = SparkSession.builder()
+                .appName("Query 5 - DataFrame API")
+                .master("local[*]")
+                .getOrCreate();
+
+        Dataset<Row> df = spark.read()
+                .parquet("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/yellow_tripdata_2024.parquet");
+
+        Dataset<Row> result = df
+                .filter(col("tip_amount").gt(0))
+                .groupBy("payment_type")
+                .agg(avg("tip_amount").alias("avg_tip"))
+                .orderBy(desc("avg_tip"));
+
+        result.show();
+
+        spark.stop();
+    }
+}

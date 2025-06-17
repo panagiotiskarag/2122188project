@@ -1,0 +1,71 @@
+//κωδικας Q1 ME RDD API Ζητουμενο 3
+package org.example;
+
+import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaPairRDD;
+import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.Optional;
+import org.apache.spark.sql.SparkSession;
+import scala.Tuple2;
+
+import java.util.Arrays;
+
+public class TripComparisonRDD {
+    public static void main(String[] args) {
+        SparkConf conf = new SparkConf().setAppName("Trip Comparison RDD").setMaster("local[*]");
+        JavaSparkContext sc = new JavaSparkContext(conf);
+
+        SparkSession spark = SparkSession.builder().getOrCreate();
+
+        // Διαβάζει τα parquet αρχεία
+        JavaRDD<String> lines2015 = sc.textFile("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/yellow_tripdata_2015.parquet");
+        JavaRDD<String> lines2024 = sc.textFile("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/yellow_tripdata_2024.parquet");
+
+        // Dummy παράδειγμα: εφόσον τα .parquet δεν είναι plain text, θα διαβάσεις με Spark SQL και μετά μετατρέπεις σε RDD
+        JavaRDD<String> rdd2015 = spark.read().parquet("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/yellow_tripdata_2015.parquet")
+                .select("PULocationID")
+                .javaRDD()
+                .map(row -> row.get(0) != null ? row.get(0).toString() : "Unknown");
+
+        JavaRDD<String> rdd2024 = spark.read().parquet("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/yellow_tripdata_2024.parquet")
+                .select("PULocationID")
+                .javaRDD()
+                .map(row -> row.get(0) != null ? row.get(0).toString() : "Unknown");
+
+        // Ζώνες
+        JavaPairRDD<String, String> zones = spark.read().parquet("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/taxi_zone_lookup.parquet")
+                .select("LocationID", "Borough")
+                .javaRDD()
+                .mapToPair(row -> new Tuple2<>(row.get(0).toString(), row.get(1).toString()));
+
+        // Υπολογισμός trips per borough
+        JavaPairRDD<String, Integer> boroughTrips2015 = rdd2015
+                .mapToPair(id -> new Tuple2<>(id, 1))
+                .reduceByKey(Integer::sum)
+                .join(zones)
+                .mapToPair(tuple -> new Tuple2<>(tuple._2._2, tuple._2._1))
+                .reduceByKey(Integer::sum);
+
+        JavaPairRDD<String, Integer> boroughTrips2024 = rdd2024
+                .mapToPair(id -> new Tuple2<>(id, 1))
+                .reduceByKey(Integer::sum)
+                .join(zones)
+                .mapToPair(tuple -> new Tuple2<>(tuple._2._2, tuple._2._1))
+                .reduceByKey(Integer::sum);
+
+        // Σύγκριση με fullOuterJoin
+        JavaPairRDD<String, Tuple2<Optional<Integer>, Optional<Integer>>> joined =
+                boroughTrips2015.fullOuterJoin(boroughTrips2024);
+
+        // Εκτύπωση αποτελεσμάτων
+        joined.mapToPair(tuple -> {
+            int count2015 = tuple._2._1.orElse(0);
+            int count2024 = tuple._2._2.orElse(0);
+            int diff = count2024 - count2015;
+            return new Tuple2<>(tuple._1, "(" + count2015 + ", " + count2024 + ", diff=" + diff + ")");
+        }).foreach(result -> System.out.println(result._1 + " -> " + result._2));
+
+        sc.stop();
+    }
+}

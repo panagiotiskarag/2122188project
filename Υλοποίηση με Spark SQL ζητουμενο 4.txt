@@ -1,0 +1,26 @@
+//Υλοποίηση με Spark SQL ζητουμενο 4
+package org.example;
+
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
+
+public class Query2SQL {
+    public static void main(String[] args) {
+        SparkSession spark = SparkSession.builder()
+                .appName("Query2 SQL")
+                .master("local[*]")
+                .getOrCreate();
+
+        Dataset<Row> df = spark.read().parquet("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/yellow_tripdata_2024.parquet");
+
+        df.createOrReplaceTempView("trips");
+
+        Dataset<Row> result = spark.sql(
+                "SELECT payment_type, AVG(trip_distance) as avg_distance FROM trips GROUP BY payment_type");
+
+        result.show();
+
+        spark.stop();
+    }
+}

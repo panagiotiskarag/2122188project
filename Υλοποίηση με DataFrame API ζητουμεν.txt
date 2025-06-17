@@ -1,0 +1,23 @@
+//Υλοποίηση με DataFrame API ζητουμενο 4
+package org.example;
+
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
+
+public class Query2DataFrame {
+    public static void main(String[] args) {
+        SparkSession spark = SparkSession.builder()
+                .appName("Query2 DataFrame")
+                .master("local[*]")
+                .getOrCreate();
+
+        Dataset<Row> df = spark.read().parquet("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/yellow_tripdata_2024.parquet");
+
+        df.groupBy("payment_type")
+          .avg("trip_distance")
+          .show();
+
+        spark.stop();
+    }
+}

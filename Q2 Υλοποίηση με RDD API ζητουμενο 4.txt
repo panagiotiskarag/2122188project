@@ -1,0 +1,43 @@
+//Q2 Υλοποίηση με RDD API ζητουμενο 4
+
+package org.example;
+
+import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaPairRDD;
+import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.sql.SparkSession;
+import scala.Tuple2;
+
+public class Query2RDD {
+    public static void main(String[] args) {
+        SparkConf conf = new SparkConf().setAppName("Query2 RDD").setMaster("local[*]");
+        JavaSparkContext sc = new JavaSparkContext(conf);
+        SparkSession spark = SparkSession.builder().getOrCreate();
+
+        JavaRDD<String> lines = spark.read()
+                .parquet("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/yellow_tripdata_2024.parquet")
+                .select("payment_type", "trip_distance")
+                .na().drop()
+                .javaRDD()
+                .map(row -> row.get(0) + "," + row.get(1));
+
+        JavaPairRDD<String, Tuple2<Double, Integer>> pairs = lines.mapToPair(line -> {
+            String[] parts = line.split(",");
+            String payment = parts[0];
+            double distance = Double.parseDouble(parts[1]);
+            return new Tuple2<>(payment, new Tuple2<>(distance, 1));
+        });
+
+        JavaPairRDD<String, Tuple2<Double, Integer>> reduced = pairs.reduceByKey((a, b) ->
+                new Tuple2<>(a._1 + b._1, a._2 + b._2));
+
+        JavaPairRDD<String, Double> averages = reduced.mapToPair(entry ->
+                new Tuple2<>(entry._1, entry._2._1 / entry._2._2));
+
+        averages.foreach(result ->
+                System.out.println("Payment: " + result._1 + " -> Avg Distance: " + result._2));
+
+        sc.stop();
+    }
+}

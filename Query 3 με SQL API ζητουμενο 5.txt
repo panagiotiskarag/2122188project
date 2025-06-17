@@ -1,0 +1,42 @@
+//Query 3 με SQL API ζητουμενο 5
+package org.example;
+
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
+
+public class Query3SQL {
+    public static void main(String[] args) {
+        SparkSession spark = SparkSession.builder()
+                .appName("Query 3 - SQL")
+                .master("local[*]")
+                .getOrCreate();
+
+        // Φόρτωση των αρχείων
+        Dataset<Row> df = spark.read()
+                .parquet("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/yellow_tripdata_2024.parquet");
+
+        Dataset<Row> zones = spark.read()
+                .parquet("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/taxi_zone_lookup.parquet");
+
+        // Δημιουργία προσωρινών πινάκων
+        df.createOrReplaceTempView("trips");
+        zones.createOrReplaceTempView("zones");
+
+        // Εκτέλεση SQL ερωτήματος
+        Dataset<Row> result = spark.sql(
+                "SELECT " +
+                        "HOUR(tpep_pickup_datetime) AS hour, " +
+                        "COUNT(*) AS total_trips, " +
+                        "AVG((UNIX_TIMESTAMP(tpep_dropoff_datetime) - UNIX_TIMESTAMP(tpep_pickup_datetime)) / 60.0) AS avg_duration " +
+                        "FROM trips " +
+                        "GROUP BY hour " +
+                        "ORDER BY hour"
+        );
+
+        // Εμφάνιση αποτελέσματος
+        result.show();
+
+        spark.stop();
+    }
+}

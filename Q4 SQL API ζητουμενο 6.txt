@@ -1,0 +1,38 @@
+//Q4 SQL API ζητουμενο 6
+package org.example;
+
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
+
+public class Query4SQL {
+    public static void main(String[] args) {
+        SparkSession spark = SparkSession.builder()
+                .appName("Query 4 - SQL API")
+                .master("local[*]")
+                .getOrCreate();
+
+        Dataset<Row> df = spark.read()
+                .parquet("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/yellow_tripdata_2024.parquet");
+
+        Dataset<Row> zones = spark.read()
+                .parquet("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/taxi_zone_lookup.parquet");
+
+        df.createOrReplaceTempView("trips");
+        zones.createOrReplaceTempView("zones");
+
+        Dataset<Row> result = spark.sql(
+                "SELECT z.Zone AS pickup_zone, " +
+                        "AVG((UNIX_TIMESTAMP(tpep_dropoff_datetime) - UNIX_TIMESTAMP(tpep_pickup_datetime)) / 60.0) AS avg_duration " +
+                        "FROM trips t " +
+                        "JOIN zones z ON t.PULocationID = z.LocationID " +
+                        "WHERE (UNIX_TIMESTAMP(tpep_dropoff_datetime) - UNIX_TIMESTAMP(tpep_pickup_datetime)) / 60.0 BETWEEN 1 AND 180 " +
+                        "GROUP BY z.Zone " +
+                        "ORDER BY avg_duration DESC"
+        );
+
+        result.show(false);
+
+        spark.stop();
+    }
+}

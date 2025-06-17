@@ -1,0 +1,33 @@
+//κωδικας μετροπης σε parquet ζητουμενο 2
+
+package org.example;
+
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
+
+public class ConvertToParquet {
+    public static void main(String[] args) {
+        SparkSession spark = SparkSession.builder()
+                .appName("CSV to Parquet to HDFS")
+                .master("local[*]")
+                .getOrCreate();
+
+        // Ανάγνωση από τοπικό σύστημα αρχείων
+        Dataset<Row> df2015 = spark.read().option("header", "true").csv("data/yellow_tripdata_2015.csv");
+        Dataset<Row> df2024 = spark.read().option("header", "true").csv("data/yellow_tripdata_2024.csv");
+        Dataset<Row> dfZones = spark.read().option("header", "true").csv("data/taxi_zone_lookup.csv");
+
+        // Εγγραφή σε HDFS (με τροποποίηση του path ώστε να αντικαταστήσεις το {username})
+        df2015.write().mode("overwrite")
+              .parquet("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/yellow_tripdata_2015.parquet");
+
+        df2024.write().mode("overwrite")
+              .parquet("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/yellow_tripdata_2024.parquet");
+
+        dfZones.write().mode("overwrite")
+              .parquet("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/taxi_zone_lookup.parquet");
+
+        spark.stop();
+    }
+}

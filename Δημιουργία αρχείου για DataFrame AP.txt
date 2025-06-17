@@ -1,0 +1,35 @@
+//Δημιουργία αρχείου για DataFrame API ζητουμενο 5
+package org.example;
+
+import org.apache.spark.sql.*;
+import org.apache.spark.sql.functions;
+
+public class Query3DataFrame {
+    public static void main(String[] args) {
+        SparkSession spark = SparkSession.builder()
+                .appName("Query 3 - DataFrame")
+                .master("local[*]")
+                .getOrCreate();
+
+        Dataset<Row> df = spark.read().parquet("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/yellow_tripdata_2024.parquet");
+        Dataset<Row> zones = spark.read().parquet("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/taxi_zone_lookup.parquet");
+
+        // Μετατροπή σε Timestamp και υπολογισμός διάρκειας
+        Dataset<Row> withDuration = df
+                .withColumn("pickup", functions.to_timestamp(df.col("tpep_pickup_datetime")))
+                .withColumn("dropoff", functions.to_timestamp(df.col("tpep_dropoff_datetime")))
+                .withColumn("duration_min", functions.expr("((unix_timestamp(dropoff) - unix_timestamp(pickup)) / 60)"));
+
+        // Join με zones για να βρούμε το Borough
+        Dataset<Row> joined = withDuration.join(zones, withDuration.col("PULocationID").equalTo(zones.col("LocationID")));
+
+        // Μέση διάρκεια ανά Borough
+        Dataset<Row> result = joined.groupBy("Borough")
+                .agg(functions.avg("duration_min").alias("avg_duration_min"))
+                .orderBy("avg_duration_min");
+
+        result.show();
+
+        spark.stop();
+    }
+}

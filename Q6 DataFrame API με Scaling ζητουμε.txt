@@ -1,0 +1,32 @@
+//Q6 DataFrame API με Scaling ζητουμενο 8
+package org.example;
+
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
+
+import static org.apache.spark.sql.functions.*;
+
+public class Query6DataFrame {
+    public static void main(String[] args) {
+        SparkSession spark = SparkSession.builder()
+                .appName("Query 6 - Scaling")
+                .getOrCreate();
+
+        Dataset<Row> df = spark.read()
+                .parquet("hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet/yellow_tripdata_2024.parquet");
+
+        Dataset<Row> result = df
+                .groupBy("PULocationID")
+                .agg(
+                    count("*").alias("trip_count"),
+                    avg("fare_amount").alias("avg_fare"),
+                    avg("tip_amount").alias("avg_tip")
+                )
+                .orderBy(desc("trip_count"));
+
+        result.show();
+
+        spark.stop();
+    }
+}
