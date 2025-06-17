@@ -1,0 +1,25 @@
+// Query1DataFrame.java
+package org.example;
+
+import org.apache.spark.sql.*;
+import static org.apache.spark.sql.functions.*;
+
+public class Query1DataFrame {
+    public static void main(String[] args) {
+        SparkSession spark = SparkSession.builder()
+                .appName("Query 1 - DataFrame")
+                .master("local[*]")
+                .getOrCreate();
+
+        Dataset<Row> df = spark.read()
+                .parquet("hdfs://hdfs-namenode:9000/data/parquet/yellow_tripdata_2024.parquet");
+
+        Dataset<Row> result = df.filter(col("passenger_count").gt(1))
+                .groupBy("passenger_count")
+                .count()
+                .orderBy(desc("count"));
+
+        result.show();
+        spark.stop();
+    }
+}
