@@ -1,0 +1,19 @@
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder.appName("CSVtoParquet").getOrCreate()
+
+# Διαδρομές HDFS
+base_input = "hdfs://hdfs-namenode:9000/data"
+base_output = "hdfs://hdfs-namenode:9000/user/panakaragiannis/data/parquet"
+
+# Διαβάζουμε CSV αρχεία
+df2015 = spark.read.option("header", True).csv(f"{base_input}/yellow_tripdata_2015.csv")
+df2024 = spark.read.option("header", True).csv(f"{base_input}/yellow_tripdata_2024.csv")
+dfzones = spark.read.option("header", True).csv(f"{base_input}/taxi_zone_lookup.csv")
+
+# Γράφουμε ως Parquet
+df2015.write.mode("overwrite").parquet(f"{base_output}/tripdata2015")
+df2024.write.mode("overwrite").parquet(f"{base_output}/tripdata2024")
+dfzones.write.mode("overwrite").parquet(f"{base_output}/zones")
+
+print("✅ Parquet αρχεία δημιουργήθηκαν επιτυχώς.")
