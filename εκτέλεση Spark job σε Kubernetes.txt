@@ -1,0 +1,12 @@
+#!/bin/bash
+
+spark-submit \
+  --master k8s://https://<kubernetes-api-server> \
+  --deploy-mode cluster \
+  --name query3-job \
+  --class org.example.Query3DataFrame \
+  --conf spark.executor.instances=4 \
+  --conf spark.executor.memory=4g \
+  --conf spark.executor.cores=2 \
+  --conf spark.kubernetes.container.image=myrepo/spark:latest \
+  local:///opt/spark/app.jar
